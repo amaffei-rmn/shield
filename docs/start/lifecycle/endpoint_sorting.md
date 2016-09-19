@@ -46,4 +46,56 @@ Shield will load balance across endpoints that are considered "equivalent".  To 
 * Have the same HTTP method
 * Parse to the same list of segments (any `identifier` is ignored when checking for segment equality).
 * Can [consume](http://swagger.io/specification/#operationObject) the request's `Content-Type`.
-* Can [produce](http://swagger.io/specification/#operationObject) the request's desired `Content-Type`. 
+* Can [produce](http://swagger.io/specification/#operationObject) the request's desired `Content-Type`.
+
+# Combining Swagger Docs
+
+Shield combines the swagger documents of all the upstreams and serves it via the `/spec` endpoint.  An issue arises when
+upstreams have endpoints with the same path but different parameters/methods/produces etc.  For example, take these 2
+overly simplified swagger documents from 2 different upstreams:
+
+Upstream 1:
+```
+"paths": {
+  "/foo/123": {
+    "get": {
+        "parameters": [
+            {
+                "name": "bar",
+                "required": true,
+                "in": "query"
+            }
+        ]
+    }
+  }
+}
+```
+Upstream 2:
+```
+"paths": {
+  "/foo/123": {
+    "get": {
+        "parameters": [ ]
+    }
+  }
+}
+```
+What should be done with the parameter `bar` when merging the Swagger documents of both upstreams?  `bar` is both
+required and absent.  Shield uses the following logic when merging parameters:
+* Parameters are required only if:
+    1)  The parameter exists in all paths that are attempting to be merged
+    2)  The parameter is required in all paths
+
+* Otherwise the parameter is added but marked as not required, even if it is required by a subset of the upstreams.
+
+From the example above, the resulting swagger documents produced by Shield would contain the path `/foo/123` which has
+a single optional parameter `bar`.
+
+Many of the other components are simply added and deduped such as:
+* Tags
+* Definitions
+* Produces
+* Consumes
+* Responses
+
+**NOTE:**  There are no guarantees on how merging of vendor extensions occurs due to their amorphous nature.

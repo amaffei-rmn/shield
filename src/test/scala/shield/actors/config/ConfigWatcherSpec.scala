@@ -3,17 +3,18 @@ package shield.actors.config
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import com.typesafe.config.ConfigFactory
+import io.swagger.models.{Swagger, Operation}
 import io.swagger.parser.SwaggerParser
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, MustMatchers, WordSpecLike}
 import shield.actors.{Middleware, ShieldActorMsgs}
 import shield.akka.helpers.VirtualScheduler
-import shield.config.{HttpServiceLocation, ServiceLocation, Swagger1ServiceType, Swagger2ServiceType}
-import shield.proxying.{AkkaBalancer, RoundRobinBalancerBuilder}
+import shield.config.HttpServiceLocation
 import shield.config._
 import shield.proxying.AkkaBalancer
 import shield.routing._
 import spray.http._
 import spray.json._
+import scala.collection.JavaConverters._
 
 import scala.concurrent.duration._
 
@@ -53,10 +54,17 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
     val postFoobar = EndpointTemplate(HttpMethods.POST, Path("/foobar"))
     val getFizzbuzz = EndpointTemplate(HttpMethods.GET, Path("/fizzbuzz"))
 
+    val get = new io.swagger.models.Path().get(new Operation())
+    val post = new io.swagger.models.Path().post(new Operation())
+    val fizzbuzzSpec = new Swagger().paths(Map[String,io.swagger.models.Path]("/fizzbuzz" -> get).asJava)
+    val foobarSpec = new Swagger().paths(Map[String,io.swagger.models.Path]("/foobar" -> get).asJava)
+    val postFoobarSpec = new Swagger().paths(Map[String,io.swagger.models.Path]("/foobar" -> post).asJava)
+
+
     val endpointMap = Map(
-      getFoobar -> EndpointDetails.empty,
-      postFoobar -> EndpointDetails.empty,
-      getFizzbuzz -> EndpointDetails.empty
+      getFoobar -> EndpointDetails(Set.empty,Set.empty,Set.empty,Set.empty,Set.empty, foobarSpec),
+      postFoobar -> EndpointDetails(Set.empty,Set.empty,Set.empty,Set.empty,Set.empty, postFoobarSpec),
+      getFizzbuzz -> EndpointDetails(Set.empty,Set.empty,Set.empty,Set.empty,Set.empty, fizzbuzzSpec)
     )
 
     "spawns child config helpers on startup" in {
@@ -93,7 +101,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
       }), shieldActor.ref, "config-watcher")
       val middle = TestProbe()
       val proxy = TestProbe()
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
       shieldActor.msgAvailable mustBe true
       shieldActor.receiveOne(100.millis)
 
@@ -124,7 +132,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
       }), shieldActor.ref, "config-watcher")
       val middle = TestProbe()
       val proxy = TestProbe()
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
       shieldActor.msgAvailable mustBe true
       shieldActor.receiveOne(100.millis)
 
@@ -164,7 +172,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
       }), shieldActor.ref, "config-watcher")
       val middle = TestProbe()
       val proxy = TestProbe()
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
       shieldActor.msgAvailable mustBe true
       shieldActor.receiveOne(100.millis)
 
@@ -316,14 +324,14 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
         override def spawnListenerBuilders() = Set.empty
       }), shieldActor.ref, "config-watcher")
       val proxy = TestProbe()
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
 
       shieldActor.msgAvailable mustBe true
       val msg1 = shieldActor.receiveOne(100.millis).asInstanceOf[ShieldActorMsgs.RouterUpdated]
       val destination1 = msg1.router.route(getFoobarRequest)
       destination1.isRight mustBe true
       destination1.right.get.template must equal (getFoobar)
-      destination1.right.get.possibleDetails must equal (List(EndpointDetails.empty))
+      destination1.right.get.possibleDetails must equal (List(EndpointDetails(Set.empty,Set.empty,Set.empty,Set.empty,Set.empty, foobarSpec)))
 
       val newDetails = EndpointDetails(
         Set(QueryParam("foo"), HeaderParam("Bar")),
@@ -333,7 +341,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
         Set.empty
       )
       val updatedMap = endpointMap + (getFoobar -> newDetails)
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, updatedMap , healthy=true, "healthy", Set.empty))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, updatedMap , healthy=true, "healthy", Set.empty))))
 
       shieldActor.msgAvailable mustBe true
       val msg2 = shieldActor.receiveOne(100.millis).asInstanceOf[ShieldActorMsgs.RouterUpdated]
@@ -351,24 +359,24 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
         override def spawnListenerBuilders() = Set.empty
       }), shieldActor.ref, "config-watcher")
       val proxy = TestProbe()
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
 
       shieldActor.msgAvailable mustBe true
       val msg1 = shieldActor.receiveOne(100.millis).asInstanceOf[ShieldActorMsgs.RouterUpdated]
       val destination1 = msg1.router.route(getFoobarRequest)
       destination1.isRight mustBe true
       destination1.right.get.template must equal (getFoobar)
-      destination1.right.get.possibleDetails must equal (List(EndpointDetails.empty))
+      destination1.right.get.possibleDetails must equal (List(EndpointDetails(Set.empty,Set.empty,Set.empty,Set.empty,Set.empty, foobarSpec)))
 
       shieldActor.msgAvailable mustBe false
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(10, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap , healthy=true, "healthy", Set.empty))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(10, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap , healthy=true, "healthy", Set.empty))))
       shieldActor.msgAvailable mustBe true
 
       val msg2 = shieldActor.receiveOne(100.millis).asInstanceOf[ShieldActorMsgs.RouterUpdated]
       val destination2 = msg2.router.route(getFoobarRequest)
       destination2.isRight mustBe true
       destination2.right.get.template must equal (getFoobar)
-      destination2.right.get.possibleDetails must equal (List(EndpointDetails.empty))
+      destination2.right.get.possibleDetails must equal (List(EndpointDetails(Set.empty,Set.empty,Set.empty,Set.empty,Set.empty, foobarSpec)))
     }
 
     "build the router to not 404 when all upstreams for an endpoint are unhealthy" in {
@@ -380,8 +388,8 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
       }), shieldActor.ref, "config-watcher")
       val proxy = TestProbe()
       watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty)),
-        HttpServiceLocation("http://example.org") -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))
+        serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty)),
+        HttpServiceLocation("http://example.org") -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))
       ))
 
       shieldActor.msgAvailable mustBe true
@@ -389,11 +397,11 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
       val destination1 = msg1.router.route(getFoobarRequest)
       destination1.isRight mustBe true
       destination1.right.get.template must equal (getFoobar)
-      destination1.right.get.possibleDetails must equal (List(EndpointDetails.empty, EndpointDetails.empty))
+      destination1.right.get.possibleDetails must equal (List(EndpointDetails(Set.empty,Set.empty,Set.empty,Set.empty,Set.empty, foobarSpec), EndpointDetails(Set.empty,Set.empty,Set.empty,Set.empty,Set.empty, foobarSpec)))
 
       watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "somewhat healthy", Set(getFoobar))),
-        HttpServiceLocation("http://example.org") -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))
+        serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "somewhat healthy", Set(getFoobar))),
+        HttpServiceLocation("http://example.org") -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))
       ))
 
       shieldActor.msgAvailable mustBe true
@@ -401,11 +409,11 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
       val destination2 = msg2.router.route(getFoobarRequest)
       destination2.isRight mustBe true
       destination2.right.get.template must equal (getFoobar)
-      destination2.right.get.possibleDetails must equal (List(EndpointDetails.empty))
+      destination2.right.get.possibleDetails must equal (List(EndpointDetails(Set.empty,Set.empty,Set.empty,Set.empty,Set.empty, foobarSpec)))
 
       watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "somewhat healthy", Set(getFoobar))),
-        HttpServiceLocation("http://example.org") -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "somewhat healthy", Set(getFoobar)))
+        serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "somewhat healthy", Set(getFoobar))),
+        HttpServiceLocation("http://example.org") -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "somewhat healthy", Set(getFoobar)))
       ))
 
       shieldActor.msgAvailable mustBe true
@@ -413,7 +421,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
       val destination3 = msg3.router.route(getFoobarRequest)
       destination3.isRight mustBe true
       destination3.right.get.template must equal (getFoobar)
-      destination3.right.get.possibleDetails must equal (List(EndpointDetails.empty, EndpointDetails.empty))
+      destination3.right.get.possibleDetails must equal (List(EndpointDetails(Set.empty,Set.empty,Set.empty,Set.empty,Set.empty, foobarSpec), EndpointDetails(Set.empty,Set.empty,Set.empty,Set.empty,Set.empty, foobarSpec)))
     }
 
     "not rebuild the router when the upstream proxy state does not change" in {
@@ -424,14 +432,14 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
         override def spawnListenerBuilders() = Set.empty
       }), shieldActor.ref, "config-watcher")
       val proxy = TestProbe()
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
 
       shieldActor.msgAvailable mustBe true
       val msg1 = shieldActor.receiveOne(100.millis).asInstanceOf[ShieldActorMsgs.RouterUpdated]
       val destination1 = msg1.router.route(getFoobarRequest)
       destination1.isRight mustBe true
       destination1.right.get.template must equal (getFoobar)
-      destination1.right.get.possibleDetails must equal (List(EndpointDetails.empty))
+      destination1.right.get.possibleDetails must equal (List(EndpointDetails(Set.empty,Set.empty,Set.empty,Set.empty,Set.empty, foobarSpec)))
 
       val newDetails = EndpointDetails(
         Set(QueryParam("foo"), HeaderParam("Bar")),
@@ -440,7 +448,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
         Set.empty,
         Set.empty
       )
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap , healthy=true, "healthy", Set.empty))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap , healthy=true, "healthy", Set.empty))))
 
       shieldActor.msgAvailable mustBe false
     }
@@ -453,7 +461,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
         override def spawnListenerBuilders() = Set.empty
       }), shieldActor.ref, "config-watcher")
       val proxy = TestProbe()
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
 
       shieldActor.msgAvailable mustBe true
       val msg1 = shieldActor.receiveOne(100.millis).asInstanceOf[ShieldActorMsgs.RouterUpdated]
@@ -471,7 +479,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
       destination2.right.get.template must equal (getFoobar)
       destination2.right.get.upstreamBalancer.asInstanceOf[AkkaBalancer].balancer must equal (originalRouter)
 
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap , healthy=true, "healthier", Set.empty))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap , healthy=true, "healthier", Set.empty))))
 
       shieldActor.msgAvailable mustBe true
       val msg2 = shieldActor.receiveOne(100.millis).asInstanceOf[ShieldActorMsgs.RouterUpdated]
@@ -497,7 +505,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
         override def spawnListenerBuilders() = Set.empty
       }), shieldActor.ref, "config-watcher")
       val proxy = TestProbe()
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set(getFizzbuzz)))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set(getFizzbuzz)))))
 
       shieldActor.msgAvailable mustBe true
       val msg1 = shieldActor.receiveOne(100.millis).asInstanceOf[ShieldActorMsgs.RouterUpdated]
@@ -519,7 +527,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
         override def spawnListenerBuilders() = Set.empty
       }), shieldActor.ref, "config-watcher")
       val proxy = TestProbe()
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
 
       shieldActor.msgAvailable mustBe true
       val msg1 = shieldActor.receiveOne(100.millis).asInstanceOf[ShieldActorMsgs.RouterUpdated]
@@ -537,7 +545,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
         override def spawnListenerBuilders() = Set.empty
       }), shieldActor.ref, "config-watcher")
       val proxy = TestProbe()
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
 
       shieldActor.msgAvailable mustBe true
       val msg1 = shieldActor.receiveOne(100.millis).asInstanceOf[ShieldActorMsgs.RouterUpdated]
@@ -551,7 +559,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
       healthcheck.upstreams must have length 1
       healthcheck.upstreams.head.service must equal ("upstream")
       healthcheck.upstreams.head.version must equal ("1.2.3")
-      healthcheck.upstreams.head.proxyType must equal ("swagger1")
+      healthcheck.upstreams.head.proxyType must equal ("swagger2")
       healthcheck.upstreams.head.baseUrl must equal (serviceLocation.baseUrl.toString())
       healthcheck.upstreams.head.endpoints must equal (endpointMap.size)
       healthcheck.upstreams.head.healthy mustBe true
@@ -625,7 +633,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
         override def spawnListenerBuilders() = Set.empty
       }), shieldActor.ref, "config-watcher")
       val proxy = TestProbe()
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))))
 
       shieldActor.msgAvailable mustBe true
       val msg1 = shieldActor.receiveOne(100.millis).asInstanceOf[ShieldActorMsgs.RouterUpdated]
@@ -634,7 +642,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
       healthcheck1.upstreams must equal (List(UpstreamHealthInfo(
         "upstream",
         "1.2.3",
-        "swagger1",
+        "swagger2",
         serviceLocation.baseUrl.toString(),
         "healthy",
         weight=1,
@@ -643,7 +651,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
         Nil
       )))
 
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy~ish", Set(getFoobar)))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy~ish", Set(getFoobar)))))
 
       shieldActor.msgAvailable mustBe true
       val msg2 = shieldActor.receiveOne(100.millis).asInstanceOf[ShieldActorMsgs.RouterUpdated]
@@ -652,7 +660,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
       healthcheck2.upstreams must equal (List(UpstreamHealthInfo(
         "upstream",
         "1.2.3",
-        "swagger1",
+        "swagger2",
         serviceLocation.baseUrl.toString(),
         "healthy~ish",
         weight=1,
@@ -661,7 +669,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
         List(EndpointTemplateInfo(getFoobar.method.toString(), getFoobar.path.toString))
       )))
 
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=false, "borked", Set(getFoobar, postFoobar, getFizzbuzz)))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=false, "borked", Set(getFoobar, postFoobar, getFizzbuzz)))))
 
       shieldActor.msgAvailable mustBe true
       val msg3 = shieldActor.receiveOne(100.millis).asInstanceOf[ShieldActorMsgs.RouterUpdated]
@@ -670,7 +678,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
       healthcheck3.upstreams must equal (List(UpstreamHealthInfo(
         "upstream",
         "1.2.3",
-        "swagger1",
+        "swagger2",
         serviceLocation.baseUrl.toString(),
         "borked",
         weight=1,
@@ -693,7 +701,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
       }), shieldActor.ref, "config-watcher")
       val proxy = TestProbe()
       val otherServiceLocation = HttpServiceLocation("http://example.org")
-      val swagger1State = ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty)
+      val swagger1State = ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty)
       val swagger2State = ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty)
 
       watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(
@@ -707,7 +715,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
       healthcheck1.upstreams must equal (List(UpstreamHealthInfo(
         "upstream",
         "1.2.3",
-        "swagger1",
+        "swagger2",
         serviceLocation.baseUrl.toString(),
         "healthy",
         weight=1,
@@ -729,7 +737,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
         UpstreamHealthInfo(
           "upstream",
           "1.2.3",
-          "swagger1",
+          "swagger2",
           serviceLocation.baseUrl.toString(),
           "healthy",
           weight=1,
@@ -764,7 +772,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
         UpstreamHealthInfo(
           "upstream",
           "1.2.3",
-          "swagger1",
+          "swagger2",
           serviceLocation.baseUrl.toString(),
           "healthy",
           weight=100,
@@ -794,7 +802,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
         override def spawnListenerBuilders() = Set("test-listener")
       }), shieldActor.ref, "config-watcher")
       val proxy = TestProbe()
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy = true, "healthy", Set.empty))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy = true, "healthy", Set.empty))))
       val listener = TestProbe()
       watcher ! ConfigWatcherMsgs.ListenerUpdated("test-listener", listener.ref)
 
@@ -818,7 +826,7 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
         override def spawnListenerBuilders() = Set("test-listener")
       }), shieldActor.ref, "config-watcher")
       val proxy = TestProbe()
-      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy = true, "healthy", Set.empty))))
+      watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy = true, "healthy", Set.empty))))
       val middle = TestProbe()
       watcher ! ConfigWatcherMsgs.MiddlewareUpdated(Middleware("test-middleware", 1.second, middle.ref))
 
@@ -843,9 +851,9 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
       }), shieldActor.ref, "config-watcher")
       val proxy = TestProbe()
       watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, Map.empty, healthy = false, "starting", Set.empty)),
-        HttpServiceLocation("https://example.com") -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty)),
-        HttpServiceLocation("http://example.org") -> WeightedProxyState(1, ProxyState("upstream2", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=false, "starting", Set.empty))
+        serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, Map.empty, healthy = false, "starting", Set.empty)),
+        HttpServiceLocation("https://example.com") -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty)),
+        HttpServiceLocation("http://example.org") -> WeightedProxyState(1, ProxyState("upstream2", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=false, "starting", Set.empty))
       ))
       val middle = TestProbe()
       watcher ! ConfigWatcherMsgs.MiddlewareUpdated(Middleware("test-middleware", 1.second, middle.ref))
@@ -858,27 +866,27 @@ class ConfigWatcherSpec  extends TestKit(ActorSystem("testSystem", ConfigFactory
       status must equal(StatusCodes.ServiceUnavailable)
 
       watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy = false, "starting", Set.empty)),
-        HttpServiceLocation("https://example.com") -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty)),
-        HttpServiceLocation("http://example.org") -> WeightedProxyState(1, ProxyState("upstream2", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))
+        serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy = false, "starting", Set.empty)),
+        HttpServiceLocation("https://example.com") -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty)),
+        HttpServiceLocation("http://example.org") -> WeightedProxyState(1, ProxyState("upstream2", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))
       ))
 
       val (status2, _) = getHealthcheck(router)
       status2 must equal(StatusCodes.ServiceUnavailable)
 
       watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy = true, "healthy", Set.empty)),
-        HttpServiceLocation("https://example.com") -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty)),
-        HttpServiceLocation("http://example.org") -> WeightedProxyState(1, ProxyState("upstream2", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))
+        serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy = true, "healthy", Set.empty)),
+        HttpServiceLocation("https://example.com") -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty)),
+        HttpServiceLocation("http://example.org") -> WeightedProxyState(1, ProxyState("upstream2", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=true, "healthy", Set.empty))
       ))
 
       val (status3, _) = getHealthcheck(router)
       status3 must equal(StatusCodes.OK)
 
       watcher ! ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy = false, "borked", Set.empty)),
-        HttpServiceLocation("http://example.com") -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=false, "borked", Set.empty)),
-        HttpServiceLocation("http://example.org") -> WeightedProxyState(1, ProxyState("upstream2", "1.2.3", Swagger1ServiceType, proxy.ref, endpointMap, healthy=false, "borked", Set.empty))
+        serviceLocation -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy = false, "borked", Set.empty)),
+        HttpServiceLocation("http://example.com") -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=false, "borked", Set.empty)),
+        HttpServiceLocation("http://example.org") -> WeightedProxyState(1, ProxyState("upstream2", "1.2.3", Swagger2ServiceType, proxy.ref, endpointMap, healthy=false, "borked", Set.empty))
       ))
 
       val (status4, _) = getHealthcheck(router)

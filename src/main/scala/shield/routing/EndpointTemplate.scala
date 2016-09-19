@@ -1,5 +1,6 @@
 package shield.routing
 
+import io.swagger.models.Swagger
 import spray.http.{HttpMethod, HttpRequest, MediaType}
 
 object EndpointTemplate {
@@ -10,6 +11,10 @@ object EndpointTemplate {
 case class EndpointTemplate(method: HttpMethod, path: Path)
 
 object EndpointDetails {
-  val empty = EndpointDetails(Set.empty, Set.empty, Set.empty, Set.empty, Set.empty)
+  def apply(params: Set[Param], canConsume: Set[MediaType], canProduce: Set[MediaType], disabledMiddleware: Set[String], disabledListeners: Set[String]): EndpointDetails = {
+    EndpointDetails(params, canConsume, canProduce, disabledMiddleware, disabledListeners, new Swagger())
+  }
+
+  val empty = EndpointDetails(Set.empty, Set.empty, Set.empty, Set.empty, Set.empty, new Swagger())
 }
-case class EndpointDetails(params: Set[Param], canConsume: Set[MediaType], canProduce: Set[MediaType], disabledMiddleware: Set[String], disabledListeners: Set[String])
+case class EndpointDetails(params: Set[Param], canConsume: Set[MediaType], canProduce: Set[MediaType], disabledMiddleware: Set[String], disabledListeners: Set[String], swagger: Swagger)

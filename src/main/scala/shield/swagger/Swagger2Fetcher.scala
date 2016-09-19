@@ -123,7 +123,8 @@ class Swagger2Fetcher(docPath: String, pipeline: SendReceive)(implicit executor:
           getConsumes(op).flatMap(translateMediaType).toSet,
           getProduces(op).flatMap(translateMediaType).toSet,
           getDisabledMiddleware(host, op),
-          getDisabledListeners(host,op)
+          getDisabledListeners(host,op),
+          parsed
         )
       )).toMap
 

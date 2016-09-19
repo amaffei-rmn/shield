@@ -6,7 +6,7 @@ import com.typesafe.config.ConfigFactory
 import org.scalatest._
 import shield.actors.config.WeightWatcherMsgs.SetWeights
 import shield.akka.helpers.VirtualScheduler
-import shield.config.{HttpServiceLocation, ServiceLocation, Swagger1ServiceType, Swagger2ServiceType}
+import shield.config.{Swagger2ServiceType, HttpServiceLocation}
 
 import scala.concurrent.duration._
 
@@ -117,7 +117,7 @@ class WeightWatcherSpec extends TestKit(ActorSystem("testSystem", ConfigFactory.
       val parent = TestProbe()
       val watcher = TestActorRef(Props(new WeightWatcher(30.seconds, 10)), parent.ref, "weight-watcher")
       val service1Location = HttpServiceLocation("http://example.com")
-      val service1Details = ServiceDetails(Swagger1ServiceType, 0)
+      val service1Details = ServiceDetails(Swagger2ServiceType, 0)
 
       parent.msgAvailable mustBe false
 
@@ -130,7 +130,7 @@ class WeightWatcherSpec extends TestKit(ActorSystem("testSystem", ConfigFactory.
       val parent = TestProbe()
       val watcher = TestActorRef(Props(new WeightWatcher(30.seconds, 10)), parent.ref, "weight-watcher")
       val service1Location = HttpServiceLocation("http://example.com")
-      val service1Details = ServiceDetails(Swagger1ServiceType, 100)
+      val service1Details = ServiceDetails(Swagger2ServiceType, 100)
 
       parent.msgAvailable mustBe false
 
@@ -147,7 +147,7 @@ class WeightWatcherSpec extends TestKit(ActorSystem("testSystem", ConfigFactory.
       val parent = TestProbe()
       val watcher = TestActorRef(Props(new WeightWatcher(30.seconds, 10)), parent.ref, "weight-watcher")
       val service1Location = HttpServiceLocation("http://example.com")
-      def service1Details(weight: Int) = ServiceDetails(Swagger1ServiceType, weight)
+      def service1Details(weight: Int) = ServiceDetails(Swagger2ServiceType, weight)
 
       parent.msgAvailable mustBe false
 
@@ -170,7 +170,7 @@ class WeightWatcherSpec extends TestKit(ActorSystem("testSystem", ConfigFactory.
       val parent = TestProbe()
       val watcher = TestActorRef(Props(new WeightWatcher(30.seconds, 10)), parent.ref, "weight-watcher")
       val service1Location = HttpServiceLocation("http://example.com")
-      def service1Details(weight: Int) = ServiceDetails(Swagger1ServiceType, weight)
+      def service1Details(weight: Int) = ServiceDetails(Swagger2ServiceType, weight)
 
       parent.msgAvailable mustBe false
 
@@ -198,7 +198,7 @@ class WeightWatcherSpec extends TestKit(ActorSystem("testSystem", ConfigFactory.
       val watcher = TestActorRef(Props(new WeightWatcher(30.seconds, 10)), parent.ref, "weight-watcher")
       val service1Location = HttpServiceLocation("http://example.com")
       val service2Location = HttpServiceLocation("http://example.org")
-      def service1Details(weight: Int) = ServiceDetails(Swagger1ServiceType, weight)
+      def service1Details(weight: Int) = ServiceDetails(Swagger2ServiceType, weight)
       def service2Details(weight: Int) = ServiceDetails(Swagger2ServiceType, weight)
 
       parent.msgAvailable mustBe false
@@ -274,7 +274,7 @@ class WeightWatcherSpec extends TestKit(ActorSystem("testSystem", ConfigFactory.
       }), parent.ref, "weight-watcher")
       val service1Location = HttpServiceLocation("http://example.com")
       val service2Location = HttpServiceLocation("http://example.org")
-      def service1Details(weight: Int) = ServiceDetails(Swagger1ServiceType, weight)
+      def service1Details(weight: Int) = ServiceDetails(Swagger2ServiceType, weight)
       def service2Details(weight: Int) = ServiceDetails(Swagger2ServiceType, weight)
 
       parent.msgAvailable mustBe false
@@ -318,7 +318,7 @@ class WeightWatcherSpec extends TestKit(ActorSystem("testSystem", ConfigFactory.
       val watcher = TestActorRef(Props(new WeightWatcher(10.seconds, 10)), parent.ref, "weight-watcher")
       val service1Location = HttpServiceLocation("http://example.com")
       val service2Location = HttpServiceLocation("http://example.org")
-      def service1Details(weight: Int) = ServiceDetails(Swagger1ServiceType, weight)
+      def service1Details(weight: Int) = ServiceDetails(Swagger2ServiceType, weight)
       def service2Details(weight: Int) = ServiceDetails(Swagger2ServiceType, weight)
 
       parent.msgAvailable mustBe false

@@ -7,11 +7,8 @@ import akka.util.Timeout
 import com.typesafe.config.Config
 import shield.actors.RestartLogging
 import shield.actors.config.{ServiceDetails, UpstreamAggregatorMsgs}
-import shield.config.{ServiceLocation, Swagger1ServiceType, Swagger2ServiceType}
+import shield.config.{ServiceLocation, Swagger2ServiceType}
 import shield.transports.HttpTransport._
-import spray.httpx.UnsuccessfulResponseException
-import spray.httpx.unmarshalling.{FromResponseUnmarshaller, Unmarshaller}
-import spray.json._
 import shield.consul.ConsulJsonProtocol._
 import shield.consul.{ConsulKVP, ConsulServiceNode, ConsulVersionedResponse}
 
@@ -72,7 +69,7 @@ class ConsulUpstreamWatcher(domainConfig: Config) extends Actor with ActorLoggin
       } else {
         swagger2Nodes += (serviceNodes.service -> serviceNodes.nodes.map(_.toHost))
       }
-      context.parent ! UpstreamAggregatorMsgs.DiscoveredUpstreams((swagger1Nodes.values.flatten.toList.map(_ -> ServiceDetails(Swagger1ServiceType, 1)) ++ swagger2Nodes.values.flatten.toList.map(_ -> ServiceDetails(Swagger2ServiceType, 1))).toMap)
+      context.parent ! UpstreamAggregatorMsgs.DiscoveredUpstreams(swagger2Nodes.values.flatten.toList.map(_ -> ServiceDetails(Swagger2ServiceType, 1)).toMap)
   }
 }
 

@@ -3,11 +3,9 @@ package shield.actors.config.upstream
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import org.scalatest.{MustMatchers, WordSpecLike}
-import shield.actors.config.{ServiceDetails, UpstreamAggregatorMsgs}
-import shield.config.{HttpServiceLocation, ServiceLocation, Swagger1ServiceType, Swagger2ServiceType}
-import spray.http.Uri
+import shield.config.HttpServiceLocation
 import shield.actors.config.{ChangedContents, ServiceDetails, UpstreamAggregatorMsgs}
-import shield.config.{ServiceLocation, Swagger1ServiceType, Swagger2ServiceType}
+import shield.config.Swagger2ServiceType
 
 class S3UpstreamUpdaterSpec extends TestKit(ActorSystem("testSystem"))
   with WordSpecLike
@@ -21,8 +19,8 @@ class S3UpstreamUpdaterSpec extends TestKit(ActorSystem("testSystem"))
       val actorRef = TestActorRef(Props(new Actor with JsonUpstreamUpdater), parent.ref, "UnderTestActor")
       actorRef ! ChangedContents(
         """[
-        |  {"serviceType": "swagger1", "serviceLocation": "http://localhost:5000"},
-        |  {"serviceType": "swagger1", "serviceLocation": "http://localhost:5001"},
+        |  {"serviceType": "swagger2", "serviceLocation": "http://localhost:5000"},
+        |  {"serviceType": "swagger2", "serviceLocation": "http://localhost:5001"},
         |  {"serviceType": "swagger2", "serviceLocation": "http://localhost:5002"},
         |  {"serviceType": "swagger2", "serviceLocation": "https://test.org"}
         |]
@@ -30,8 +28,8 @@ class S3UpstreamUpdaterSpec extends TestKit(ActorSystem("testSystem"))
 
       parent.expectMsg(UpstreamAggregatorMsgs.DiscoveredUpstreams(
         Map(
-          HttpServiceLocation("http://localhost:5000") -> ServiceDetails(Swagger1ServiceType, 1),
-          HttpServiceLocation("http://localhost:5001") -> ServiceDetails(Swagger1ServiceType, 1),
+          HttpServiceLocation("http://localhost:5000") -> ServiceDetails(Swagger2ServiceType, 1),
+          HttpServiceLocation("http://localhost:5001") -> ServiceDetails(Swagger2ServiceType, 1),
           HttpServiceLocation("http://localhost:5002") -> ServiceDetails(Swagger2ServiceType, 1),
           HttpServiceLocation("https://test.org") -> ServiceDetails(Swagger2ServiceType, 1)
         )
@@ -43,8 +41,8 @@ class S3UpstreamUpdaterSpec extends TestKit(ActorSystem("testSystem"))
       val actorRef = TestActorRef(Props(new Actor with JsonUpstreamUpdater), parent.ref, "UnderTestActor")
       actorRef ! ChangedContents(
         """[
-          |  {"serviceType": "swagger1", "serviceLocation": "http://localhost:5000", "weight": 0},
-          |  {"serviceType": "swagger1", "serviceLocation": "http://localhost:5001", "weight": 1},
+          |  {"serviceType": "swagger2", "serviceLocation": "http://localhost:5000", "weight": 0},
+          |  {"serviceType": "swagger2", "serviceLocation": "http://localhost:5001", "weight": 1},
           |  {"serviceType": "swagger2", "serviceLocation": "http://localhost:5002", "weight": 2},
           |  {"serviceType": "swagger2", "serviceLocation": "https://test.org"}
           |]
@@ -52,8 +50,8 @@ class S3UpstreamUpdaterSpec extends TestKit(ActorSystem("testSystem"))
 
       parent.expectMsg(UpstreamAggregatorMsgs.DiscoveredUpstreams(
         Map(
-          HttpServiceLocation("http://localhost:5000") -> ServiceDetails(Swagger1ServiceType, 0),
-          HttpServiceLocation("http://localhost:5001") -> ServiceDetails(Swagger1ServiceType, 1),
+          HttpServiceLocation("http://localhost:5000") -> ServiceDetails(Swagger2ServiceType, 0),
+          HttpServiceLocation("http://localhost:5001") -> ServiceDetails(Swagger2ServiceType, 1),
           HttpServiceLocation("http://localhost:5002") -> ServiceDetails(Swagger2ServiceType, 2),
           HttpServiceLocation("https://test.org") -> ServiceDetails(Swagger2ServiceType, 1)
         )
@@ -65,10 +63,10 @@ class S3UpstreamUpdaterSpec extends TestKit(ActorSystem("testSystem"))
       val actorRef = TestActorRef(Props(new Actor with JsonUpstreamUpdater), parent.ref, "UnderTestActor")
       actorRef ! ChangedContents(
         """{
-        | "swagger1": {"service": "pyapi", "baseUrl": "http://localhost:5001"},
         | "swagger2": [
         |  {"service": "javaapi", "baseUrl": "http://localhost:5000"},
-        |  {"service": "javaapi", "baseUrl": "http://test.org"}
+        |  {"service": "javaapi", "baseUrl": "http://test.org"},
+        |  {"service": "pyapi", "baseUrl": "http://localhost:5001"}
         | ]
         |}""".stripMargin)
 
@@ -80,8 +78,8 @@ class S3UpstreamUpdaterSpec extends TestKit(ActorSystem("testSystem"))
       val actorRef = TestActorRef(Props(new Actor with JsonUpstreamUpdater), parent.ref, "UnderTestActor")
       actorRef ! ChangedContents(
         """[
-          |  {"serviceType": "swagger1", "serviceLocation": "http://localhost:5000"},
-          |  {"serviceType": "swagger1", "serviceLocation": "http://localhost:5001"},
+          |  {"serviceType": "swagger2", "serviceLocation": "http://localhost:5000"},
+          |  {"serviceType": "swagger2", "serviceLocation": "http://localhost:5001"},
           |  {"serviceType": "swagger2", "serviceLocation": "http://localhost:5002", "weight": "0.1"},
           |  {"serviceType": "swagger2", "serviceLocation": "https://test.org"}
           |]
@@ -95,8 +93,8 @@ class S3UpstreamUpdaterSpec extends TestKit(ActorSystem("testSystem"))
       val actorRef = TestActorRef(Props(new Actor with JsonUpstreamUpdater), parent.ref, "UnderTestActor")
       actorRef ! ChangedContents(
         """[
-          |  {"serviceType": "swagger1", "serviceLocation": "http://localhost:5000"},
-          |  {"serviceType": "swagger1", "serviceLocation": "http://localhost:5001"},
+          |  {"serviceType": "swagger2", "serviceLocation": "http://localhost:5000"},
+          |  {"serviceType": "swagger2", "serviceLocation": "http://localhost:5001"},
           |  {"serviceType": "swagger2", "serviceLocation": "http://localhost:5002", "weight": -10},
           |  {"serviceType": "swagger2", "serviceLocation": "https://test.org"}
           |]
@@ -110,7 +108,7 @@ class S3UpstreamUpdaterSpec extends TestKit(ActorSystem("testSystem"))
       val actorRef = TestActorRef(Props(new Actor with JsonUpstreamUpdater), parent.ref, "UnderTestActor")
       actorRef ! ChangedContents(
         """[
-          |  {"serviceType": "swagger1", "serviceLocation": "http://localhost:5000"},
+          |  {"serviceType": "swagger2", "serviceLocation": "http://localhost:5000"},
           |  {"serviceType": "swagger2", "serviceLocation": "http://localhost:5002"},
           |  {"serviceType": "foobar", "serviceLocation": "http://localhost:5002"}
           |]

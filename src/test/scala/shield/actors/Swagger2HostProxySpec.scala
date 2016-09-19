@@ -11,7 +11,7 @@ import shield.akka.helpers.VirtualScheduler
 import shield.config._
 import shield.proxying.{ProxiedResponse, ProxyRequest}
 import shield.routing.{EndpointDetails, EndpointTemplate, Path}
-import shield.swagger.SwaggerDetails
+import shield.swagger.{SwaggerFetcher, SwaggerDetails}
 import spray.http.HttpHeaders.RawHeader
 import spray.http._
 
@@ -30,6 +30,33 @@ class Swagger2HostProxySpec extends TestKit(ActorSystem("testSystem", ConfigFact
 
   val scheduler = system.scheduler.asInstanceOf[VirtualScheduler]
   def virtualTime = scheduler.virtualTime
+
+  class FakeFetcher(details: SwaggerDetails) extends SwaggerFetcher {
+    var fetchCount = 0
+
+    override def fetch(host: ServiceLocation): Future[SwaggerDetails] = {
+      fetchCount += 1
+      Future.successful(details)
+    }
+  }
+
+  class FailFetcher extends SwaggerFetcher {
+    var fetchCount = 0
+    override def fetch(host: ServiceLocation): Future[SwaggerDetails] = {
+      fetchCount += 1
+      Future.failed(new NotImplementedError())
+    }
+  }
+
+  class NeverFetcher extends SwaggerFetcher {
+    var fetchCount = 0
+
+    override def fetch(host: ServiceLocation): Future[SwaggerDetails] = {
+      fetchCount += 1
+      Promise().future
+    }
+  }
+
 
   override def beforeEach: Unit = {
     scheduler.reset()

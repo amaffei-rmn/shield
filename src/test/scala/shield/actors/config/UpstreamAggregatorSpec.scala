@@ -36,14 +36,14 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
   "WeightedProxyState" must {
     "not allow negative weights" in {
       intercept[IllegalArgumentException] {
-        WeightedProxyState(-1, ProxyState("svc", "ver", Swagger1ServiceType, TestProbe().ref, Map.empty, healthy=true, "serving", Set.empty))
+        WeightedProxyState(-1, ProxyState("svc", "ver", Swagger2ServiceType, TestProbe().ref, Map.empty, healthy=true, "serving", Set.empty))
       }
     }
   }
   "ServiceDetails" must {
     "not allow negative weights" in {
       intercept[IllegalArgumentException] {
-        ServiceDetails(Swagger1ServiceType, -1)
+        ServiceDetails(Swagger2ServiceType, -1)
       }
     }
   }
@@ -110,14 +110,14 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
       }), parent.ref, "upstream-aggregator")
 
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(Map(
-        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger1ServiceType, 1)
+        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger2ServiceType, 1)
       ))
 
-      latestType must equal(Swagger1ServiceType)
+      latestType must equal(Swagger2ServiceType)
       latestLocation must equal(HttpServiceLocation("http://example.com"))
 
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(Map(
-        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger1ServiceType, 1),
+        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger2ServiceType, 1),
         HttpServiceLocation("https://example.com") -> ServiceDetails(Swagger2ServiceType, 1)
       ))
 
@@ -148,24 +148,24 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
       }), parent.ref, "upstream-aggregator")
 
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(Map(
-        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger1ServiceType, 1)
+        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger2ServiceType, 1)
       ))
 
-      latestType must equal(Swagger1ServiceType)
+      latestType must equal(Swagger2ServiceType)
       latestLocation must equal(HttpServiceLocation("http://example.com"))
 
       latestType = null
       latestLocation = null
 
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(Map(
-        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger1ServiceType, 1)
+        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger2ServiceType, 1)
       ))
 
       latestType mustBe null
       latestLocation mustBe null
 
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(Map(
-        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger1ServiceType, 1),
+        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger2ServiceType, 1),
         HttpServiceLocation("https://example.com") -> ServiceDetails(Swagger2ServiceType, 1)
       ))
 
@@ -176,7 +176,7 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
       latestLocation = null
 
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(Map(
-        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger1ServiceType, 1),
+        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger2ServiceType, 1),
         HttpServiceLocation("https://example.com") -> ServiceDetails(Swagger2ServiceType, 1)
       ))
 
@@ -200,27 +200,27 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
       }))
 
       val m1 = Map[ServiceLocation, ServiceDetails](
-        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger1ServiceType, 1)
+        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger2ServiceType, 1)
       )
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(m1)
       watcher.expectMsg(WeightWatcherMsgs.SetTargetWeights(m1))
 
       val m2 = Map[ServiceLocation, ServiceDetails](
-        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger1ServiceType, 1),
+        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger2ServiceType, 1),
         HttpServiceLocation("https://example.com") -> ServiceDetails(Swagger2ServiceType, 1)
       )
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(m2)
       watcher.expectMsg(WeightWatcherMsgs.SetTargetWeights(m2))
 
       val m3 = Map[ServiceLocation, ServiceDetails](
-        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger1ServiceType, 0),
+        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger2ServiceType, 0),
         HttpServiceLocation("https://example.com") -> ServiceDetails(Swagger2ServiceType, 1)
       )
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(m3)
       watcher.expectMsg(WeightWatcherMsgs.SetTargetWeights(m3))
 
       val m4 = Map[ServiceLocation, ServiceDetails](
-        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger1ServiceType, 0)
+        HttpServiceLocation("http://example.com") -> ServiceDetails(Swagger2ServiceType, 0)
       )
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(m4)
       watcher.expectMsg(WeightWatcherMsgs.SetTargetWeights(m4))
@@ -249,18 +249,18 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
       val swagger2Service = HttpServiceLocation("https://example.com")
 
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(Map(
-        swagger1Service -> ServiceDetails(Swagger1ServiceType, 1)
+        swagger1Service -> ServiceDetails(Swagger2ServiceType, 1)
       ))
 
-      parent.expectMsg(ConfigWatcherMsgs.UpstreamsUpdated(Map(swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger1ServiceType, proxy.ref, Map.empty, healthy = false, "initializing", Set.empty)))))
+      parent.expectMsg(ConfigWatcherMsgs.UpstreamsUpdated(Map(swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy.ref, Map.empty, healthy = false, "initializing", Set.empty)))))
 
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(Map(
-        swagger1Service -> ServiceDetails(Swagger1ServiceType, 1),
+        swagger1Service -> ServiceDetails(Swagger2ServiceType, 1),
         swagger2Service -> ServiceDetails(Swagger2ServiceType, 2)
       ))
 
       parent.expectMsg(ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger1ServiceType, proxy.ref, Map.empty, healthy = false, "initializing", Set.empty)),
+        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy.ref, Map.empty, healthy = false, "initializing", Set.empty)),
         swagger2Service -> WeightedProxyState(2, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy.ref, Map.empty, healthy = false, "initializing", Set.empty))
       )))
     }
@@ -287,33 +287,33 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
       val swagger2Service = HttpServiceLocation("https://example.com")
 
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(Map(
-        swagger1Service -> ServiceDetails(Swagger1ServiceType, 1),
+        swagger1Service -> ServiceDetails(Swagger2ServiceType, 1),
         swagger2Service -> ServiceDetails(Swagger2ServiceType, 1)
       ))
 
       parent.expectMsg(ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger1ServiceType, proxy.ref, Map.empty, healthy = false, "initializing", Set.empty)),
+        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy.ref, Map.empty, healthy = false, "initializing", Set.empty)),
         swagger2Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy.ref, Map.empty, healthy = false, "initializing", Set.empty))
       )))
 
-      agg ! UpstreamAggregatorMsgs.StateUpdated(swagger1Service, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, Map.empty, healthy = true, "foobar", Set.empty))
+      agg ! UpstreamAggregatorMsgs.StateUpdated(swagger1Service, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, Map.empty, healthy = true, "foobar", Set.empty))
 
       parent.expectMsg(ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        swagger1Service -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, Map.empty, healthy = true, "foobar", Set.empty)),
+        swagger1Service -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, Map.empty, healthy = true, "foobar", Set.empty)),
         swagger2Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy.ref, Map.empty, healthy = false, "initializing", Set.empty))
       )))
 
       agg ! UpstreamAggregatorMsgs.StateUpdated(swagger2Service, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, Map.empty, healthy = false, "fizzbuzz", Set.empty))
 
       parent.expectMsg(ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        swagger1Service -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, Map.empty, healthy = true, "foobar", Set.empty)),
+        swagger1Service -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, Map.empty, healthy = true, "foobar", Set.empty)),
         swagger2Service -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, Map.empty, healthy = false, "fizzbuzz", Set.empty))
       )))
 
-      agg ! UpstreamAggregatorMsgs.StateUpdated(swagger1Service, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, Map.empty, healthy = false, "borked", Set.empty))
+      agg ! UpstreamAggregatorMsgs.StateUpdated(swagger1Service, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, Map.empty, healthy = false, "borked", Set.empty))
 
       parent.expectMsg(ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        swagger1Service -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, Map.empty, healthy = false, "borked", Set.empty)),
+        swagger1Service -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, Map.empty, healthy = false, "borked", Set.empty)),
         swagger2Service -> WeightedProxyState(1, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, Map.empty, healthy = false, "fizzbuzz", Set.empty))
       )))
     }
@@ -337,12 +337,12 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
         override def spawnWeightWatcher() = watcher.ref
       }), parent.ref, "upstream-aggregator")
       val swagger1Service = HttpServiceLocation("http://example.com")
-      val swagger1State = ProxyState("(unknown)", "(unknown)", Swagger1ServiceType, proxy.ref, Map.empty, healthy = false, "initializing", Set.empty)
+      val swagger1State = ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy.ref, Map.empty, healthy = false, "initializing", Set.empty)
       val swagger2Service = HttpServiceLocation("https://example.com")
       val swagger2State = ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy.ref, Map.empty, healthy = false, "initializing", Set.empty)
 
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(Map(
-        swagger1Service -> ServiceDetails(Swagger1ServiceType, 1),
+        swagger1Service -> ServiceDetails(Swagger2ServiceType, 1),
         swagger2Service -> ServiceDetails(Swagger2ServiceType, 1)
       ))
 
@@ -391,12 +391,12 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
         override def spawnWeightWatcher() = watcher.ref
       }), parent.ref, "upstream-aggregator")
       val swagger1Service = HttpServiceLocation("http://example.com")
-      val swagger1State = ProxyState("(unknown)", "(unknown)", Swagger1ServiceType, proxy.ref, Map.empty, healthy = false, "initializing", Set.empty)
+      val swagger1State = ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy.ref, Map.empty, healthy = false, "initializing", Set.empty)
       val swagger2Service = HttpServiceLocation("https://example.com")
       val swagger2State = ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy.ref, Map.empty, healthy = false, "initializing", Set.empty)
 
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(Map(
-        swagger1Service -> ServiceDetails(Swagger1ServiceType, 1),
+        swagger1Service -> ServiceDetails(Swagger2ServiceType, 1),
         swagger2Service -> ServiceDetails(Swagger2ServiceType, 1)
       ))
 
@@ -452,7 +452,7 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
       }), parent.ref, "upstream-aggregator")
 
       val swagger1Service = HttpServiceLocation("http://example.com")
-      agg ! UpstreamAggregatorMsgs.StateUpdated(swagger1Service, ProxyState("upstream", "1.2.3", Swagger1ServiceType, proxy.ref, Map.empty, healthy = true, "foobar", Set.empty))
+      agg ! UpstreamAggregatorMsgs.StateUpdated(swagger1Service, ProxyState("upstream", "1.2.3", Swagger2ServiceType, proxy.ref, Map.empty, healthy = true, "foobar", Set.empty))
 
       parent.msgAvailable mustBe false
     }
@@ -476,7 +476,7 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
         override def spawnWeightWatcher() = watcher.ref
       }), parent.ref, "upstream-aggregator")
       val swagger1Service = HttpServiceLocation("http://example.com")
-      val swagger1State = ProxyState("(unknown)", "(unknown)", Swagger1ServiceType, proxy.ref, Map.empty, healthy = false, "initializing", Set.empty)
+      val swagger1State = ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy.ref, Map.empty, healthy = false, "initializing", Set.empty)
       val swagger2Service = HttpServiceLocation("https://example.com")
       val swagger2State = ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy.ref, Map.empty, healthy = false, "initializing", Set.empty)
 
@@ -488,7 +488,7 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
       parent.msgAvailable mustBe false
 
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(Map(
-        swagger1Service -> ServiceDetails(Swagger1ServiceType, 1),
+        swagger1Service -> ServiceDetails(Swagger2ServiceType, 1),
         swagger2Service -> ServiceDetails(Swagger2ServiceType, 1)
       ))
 
@@ -566,12 +566,12 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
       }), parent.ref, "config-watcher")
 
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(Map(
-        swagger1Service -> ServiceDetails(Swagger1ServiceType, 1),
+        swagger1Service -> ServiceDetails(Swagger2ServiceType, 1),
         swagger2Service -> ServiceDetails(Swagger2ServiceType, 1)
       ))
 
       parent.expectMsg(ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger1ServiceType, proxy1.ref, Map.empty, healthy = false, "initializing", Set.empty)),
+        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy1.ref, Map.empty, healthy = false, "initializing", Set.empty)),
         swagger2Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy2.ref, Map.empty, healthy = false, "initializing", Set.empty))
       )))
 
@@ -581,7 +581,7 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
 
       proxy1.expectMsg(HostProxyMsgs.ShutdownProxy)
       parent.expectMsg(ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger1ServiceType, proxy1.ref, Map.empty, healthy = false, "unregistering", Set.empty)),
+        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy1.ref, Map.empty, healthy = false, "unregistering", Set.empty)),
         swagger2Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy2.ref, Map.empty, healthy = false, "initializing", Set.empty))
       )))
 
@@ -589,7 +589,7 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
 
       proxy2.expectMsg(HostProxyMsgs.ShutdownProxy)
       parent.expectMsg(ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger1ServiceType, proxy1.ref, Map.empty, healthy = false, "unregistering", Set.empty)),
+        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy1.ref, Map.empty, healthy = false, "unregistering", Set.empty)),
         swagger2Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy2.ref, Map.empty, healthy = false, "unregistering", Set.empty))
       )))
     }
@@ -621,12 +621,12 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
       }), parent.ref, "config-watcher")
 
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(Map(
-        swagger1Service -> ServiceDetails(Swagger1ServiceType, 1),
+        swagger1Service -> ServiceDetails(Swagger2ServiceType, 1),
         swagger2Service -> ServiceDetails(Swagger2ServiceType, 1)
       ))
 
       parent.expectMsg(ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger1ServiceType, proxy1.ref, Map.empty, healthy = false, "initializing", Set.empty)),
+        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy1.ref, Map.empty, healthy = false, "initializing", Set.empty)),
         swagger2Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy2.ref, Map.empty, healthy = false, "initializing", Set.empty))
       )))
 
@@ -635,7 +635,7 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
       proxy1.expectMsg(HostProxyMsgs.ShutdownProxy)
       proxy2.expectMsg(HostProxyMsgs.ShutdownProxy)
       parent.expectMsg(ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger1ServiceType, proxy1.ref, Map.empty, healthy = false, "unregistering", Set.empty)),
+        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy1.ref, Map.empty, healthy = false, "unregistering", Set.empty)),
         swagger2Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy2.ref, Map.empty, healthy = false, "unregistering", Set.empty))
       )))
 
@@ -669,12 +669,12 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
       }), parent.ref, "config-watcher")
 
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(Map(
-        swagger1Service -> ServiceDetails(Swagger1ServiceType, 1),
+        swagger1Service -> ServiceDetails(Swagger2ServiceType, 1),
         swagger2Service -> ServiceDetails(Swagger2ServiceType, 1)
       ))
 
       parent.expectMsg(ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger1ServiceType, proxy1.ref, Map.empty, healthy = false, "initializing", Set.empty)),
+        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy1.ref, Map.empty, healthy = false, "initializing", Set.empty)),
         swagger2Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy2.ref, Map.empty, healthy = false, "initializing", Set.empty))
       )))
 
@@ -683,7 +683,7 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
       proxy1.expectMsg(HostProxyMsgs.ShutdownProxy)
       proxy2.expectMsg(HostProxyMsgs.ShutdownProxy)
       parent.expectMsg(ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger1ServiceType, proxy1.ref, Map.empty, healthy = false, "unregistering", Set.empty)),
+        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy1.ref, Map.empty, healthy = false, "unregistering", Set.empty)),
         swagger2Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy2.ref, Map.empty, healthy = false, "unregistering", Set.empty))
       )))
 
@@ -722,12 +722,12 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
       }), parent.ref, "config-watcher")
 
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(Map(
-        swagger1Service -> ServiceDetails(Swagger1ServiceType, 1),
+        swagger1Service -> ServiceDetails(Swagger2ServiceType, 1),
         swagger2Service -> ServiceDetails(Swagger2ServiceType, 1)
       ))
 
       parent.expectMsg(ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger1ServiceType, proxy1.ref, Map.empty, healthy = false, "initializing", Set.empty)),
+        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy1.ref, Map.empty, healthy = false, "initializing", Set.empty)),
         swagger2Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy2.ref, Map.empty, healthy = false, "initializing", Set.empty))
       )))
 
@@ -765,12 +765,12 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
       }), parent.ref, "config-watcher")
 
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(Map(
-        swagger1Service -> ServiceDetails(Swagger1ServiceType, 1),
+        swagger1Service -> ServiceDetails(Swagger2ServiceType, 1),
         swagger2Service -> ServiceDetails(Swagger2ServiceType, 1)
       ))
 
       parent.expectMsg(ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger1ServiceType, proxy1.ref, Map.empty, healthy = false, "initializing", Set.empty)),
+        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy1.ref, Map.empty, healthy = false, "initializing", Set.empty)),
         swagger2Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy2.ref, Map.empty, healthy = false, "initializing", Set.empty))
       )))
 
@@ -779,7 +779,7 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
       proxy1.expectMsg(HostProxyMsgs.ShutdownProxy)
       proxy2.expectMsg(HostProxyMsgs.ShutdownProxy)
       parent.expectMsg(ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger1ServiceType, proxy1.ref, Map.empty, healthy = false, "unregistering", Set.empty)),
+        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy1.ref, Map.empty, healthy = false, "unregistering", Set.empty)),
         swagger2Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy2.ref, Map.empty, healthy = false, "unregistering", Set.empty))
       )))
 
@@ -798,12 +798,12 @@ class UpstreamAggregatorSpec  extends TestKit(ActorSystem("testSystem", ConfigFa
       proxy2 = TestProbe()
 
       agg ! UpstreamAggregatorMsgs.DiscoveredUpstreams(Map(
-        swagger1Service -> ServiceDetails(Swagger1ServiceType, 1),
+        swagger1Service -> ServiceDetails(Swagger2ServiceType, 1),
         swagger2Service -> ServiceDetails(Swagger2ServiceType, 1)
       ))
 
       parent.expectMsg(ConfigWatcherMsgs.UpstreamsUpdated(Map(
-        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger1ServiceType, proxy1.ref, Map.empty, healthy = false, "initializing", Set.empty)),
+        swagger1Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy1.ref, Map.empty, healthy = false, "initializing", Set.empty)),
         swagger2Service -> WeightedProxyState(1, ProxyState("(unknown)", "(unknown)", Swagger2ServiceType, proxy2.ref, Map.empty, healthy = false, "initializing", Set.empty))
       )))
     }
